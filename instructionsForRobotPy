@@ -1,0 +1,4 @@
+To run the motors on the banner, you must use the letter ports for the robot on side of the vex brain. Those are the "Wave length model" wires,
+which connect to the motors. 
+
+To run the robot in vex, call it a 393 motor, and set the port to F, or whatever it is plugged into.
