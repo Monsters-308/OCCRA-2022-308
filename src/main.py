@@ -1,6 +1,5 @@
 #region VEXcode Generated Robot Configuration
 from vex import *
-import urandom
 
 # Brain should be defined by default
 brain=Brain()
@@ -169,11 +168,11 @@ def main():
 
 
 #drivetrain functions
-def driveLeft(speed : int, units : PercentUnits):
+def driveLeft(speed: float, units):
     leftWheelMotor.set_velocity(int(speed), units)
     leftWheelMotor.spin(FORWARD)
 
-def driveRight(speed : int, units : PercentUnits):
+def driveRight(speed: float, units):
     rightWheelMotor.set_velocity(int(speed), units)
     rightWheelMotor.spin(REVERSE)
 
