@@ -1,6 +1,5 @@
 #region VEXcode Generated Robot Configuration
 from vex import *
-import urandom
 
 # Brain should be defined by default
 brain=Brain()
@@ -9,40 +8,39 @@ brain=Brain()
 # Robot configuration code
 sensors_array = Triport(Ports.PORT20)
 
-LeftWheelMotor1 = Motor29(brain.three_wire_port.c, False)
-LeftWheelMotor2 = Motor29(brain.three_wire_port.h, False)
+leftWheelMotor = Motor29(brain.three_wire_port.h, False)
 
-RightWheelMotor1 = Motor29(brain.three_wire_port.a, False)
-RightWheelMotor2 = Motor29(brain.three_wire_port.b, False)
+rightWheelMotor = Motor29(brain.three_wire_port.b, False)
 
-Conveyor1 = Motor29(brain.three_wire_port.g, False) #Y BUTTON
+conveyor1 = Motor29(brain.three_wire_port.g, False) #Y BUTTON
 
-ConveyorIntakeWheels = Motor29(brain.three_wire_port.e, False) #INTAKE, RUNS WITH CONVEYOR 1 AT SAME TIME
+conveyorIntakeWheels = Motor29(brain.three_wire_port.e, False) #INTAKE, RUNS WITH CONVEYOR 1 AT SAME TIME
 
-Conveyor2 = Motor29(brain.three_wire_port.d, False)#A BUTTON, SHOOTER
+conveyor2 = Motor29(brain.three_wire_port.d, True)#A BUTTON, SHOOTER
 
-Lift = Motor29(brain.three_wire_port.f, False)# DOWN=HOME, RIGHT=LEVEL2, UP=LEVEL3 
+lift = Motor29(brain.three_wire_port.f, False)# DOWN=HOME, RIGHT=LEVEL2, UP=LEVEL3 
 
 controller_1 = Controller(PRIMARY)
-controller_2 = Controller(PARTNER)
+controller_2 = controller_1
 
-#SonicSensor = Sonar(sensors_array.a)# SonicSensor is used to help determine which level/height for lift to go to
-#make 3 bumper swtiches, to tell what level to make lift go to
+#SonicSensor = Sonar(sensors_array.f)# SonicSensor is used to help determine which level/height for lift to go to
 
-bumperlift1 = Bumper(sensors_array.a)
-bumperlift2 = Bumper(sensors_array.b)
-bumperlift3 = Bumper(sensors_array.c)
+#make 3 bumper swtiches to keep track of where the lift is
+bumperLift1 = Bumper(sensors_array.a)
+bumperLift2 = Bumper(sensors_array.b)
+bumperLift3 = Bumper(sensors_array.c)
 
 
 #Keeps track of where the lift was last at.
 #0 is default value for when robot first activates.
 whereLiftAt=0
 
+#FRONT bumpers (not for lift)
+bumper1 = Bumper(sensors_array.d)
+bumper2 = Bumper(sensors_array.e)
 
-Bumper1 = Bumper(sensors_array.d)
-Bumper2 = Bumper(sensors_array.e)
+lift.stop()
 
-Lift.stop()
 # wait for rotation sensor to fully initialize
 wait(30, MSEC)
 #endregion VEXcode Generated Robot Configuration
@@ -57,30 +55,40 @@ wait(30, MSEC)
 #                                                                            */
 #----------------------------------------------------------------------------*/
 
-# ---- START VEXCODE CONFIGURED DEVICES ----
-# LeftWheelMotor1       motor29       A
-# LeftWheelMotor2       motor29       B
-# LeftMotor3       motor29       C
-# RightWheelMotor1      motor29       D
-# RightWheelMotor2      motor29       E
-# RightMotor3      motor29       F
-# ---- END VEXCODE CONFIGURED DEVICES ----
+"""
+ ---- START VEXCODE CONFIGURED DEVICES ----
+ Three-wire ports:
+    rightWheelMotor1 (defunct)       A
+    rightWheelMotor                  B
+    leftWheelMotor1 (defunct)        C
+    conveyor2                        D
+    conveyorIntakeWheels             E
+    lift                             F
+    conveyor                         G
+    leftWheelMotor                   H
+ 
+ Ports:
+    sensors_array:                  20
+        bumperLift1                  A
+        bumperLift2                  B
+        bumperLift3                  C
+        bumper1                      D
+        bumper2                      E
 
+ ---- END VEXCODE CONFIGURED DEVICES ----
+"""
 
 def main():
-    #declare speed
+    #import global lift variable
     global whereLiftAt
-    #for failsave set to divide by 6, normal is 2; makes robot slower
-    Axis3=controller_1.axis3.position()/1
 
-    #failsave -1/6, normal -1/2
-    Axis1=controller_1.axis1.position()*(.8)
+    #get controller axis positions
+    Axis3=controller_1.axis3.position()/2 #for failsave set to divide by 6, normal is 1; makes robot slower
+    Axis1=controller_1.axis1.position()*(.5) #failsave -1/6, normal 0.8
     
-    #controller_1.screen.set_cursor(1,1)
+    #controllerPrint(Axis1, (1,1), True, True)
 
-    #controller_1.screen.print(str(Axis1))
-    #controller_1.screen.clear_screen()
-
+    #left: resets lift variable
     if controller_2.buttonLeft.pressing():
         whereLiftAt = 0 
 
@@ -90,10 +98,11 @@ def main():
     if abs(Axis1)<2:
         Axis1=0
 
-    #this declares the speeds, will go forward
+    #this initially sets both axises to moving forward/backward
     leftSpeed = Axis3
     rightSpeed = Axis3
 
+    #this allows the robot to steer using Axis1
     if Axis1 > 0:
         leftSpeed = leftSpeed + Axis1 
         rightSpeed = rightSpeed - Axis1
@@ -102,7 +111,7 @@ def main():
         rightSpeed = rightSpeed - Axis1 
 
 
-
+    #adjusts for motor biases to make robot go straight
     if leftSpeed > 0:
         leftSpeed = leftSpeed +2.8
     if rightSpeed < 0:
@@ -112,129 +121,124 @@ def main():
 
 
     #set speeds
-    #drivetrain is right sided
     driveRight(rightSpeed, PERCENT)
     driveLeft(leftSpeed, PERCENT)
 
-    
-
-
-    b1 = bumperlift1.pressing()
-    b2= bumperlift2.pressing()
-    b3= bumperlift3.pressing()
+    #keeps track of where the lift is at
+    b1 = bumperLift1.pressing()
+    b2 = bumperLift2.pressing()
+    b3 = bumperLift3.pressing()
 
     if b1:
-        whereLiftAt=1
-        Lift.stop()
+        whereLiftAt = 1
+        lift.stop()
     if b2:
-        whereLiftAt=2
-        Lift.stop()
+        whereLiftAt = 2
+        lift.stop()
     if b3:
-        whereLiftAt =3
-        Lift.stop()
-
+        whereLiftAt = 3
+        lift.stop()
 
     #controllerPrint(whereLiftAt, (3,3), True, True)
 
 
 
+    #functions for controller and front bumper inputs
 
+    conveyor1System(controller_2.buttonY.pressing(), controller_2.buttonR1.pressing())
 
-    Conveyor1System(controller_2.buttonY.pressing(), controller_2.buttonR1.pressing())
-
+    conveyor2System(controller_2.buttonA.pressing(), controller_2.buttonR1.pressing())
+    
     liftSystem(controller_2.buttonDown.pressing(), controller_2.buttonRight.pressing(), controller_2.buttonUp.pressing(), controller_2.buttonLeft.pressing(), whereLiftAt)
 
-    BumperSystem(Bumper1.pressing(), Bumper2.pressing())
-
-     
-    Conveyor2System(controller_2.buttonA.pressing(), controller_2.buttonR1.pressing())
-
     liftManual(controller_2.buttonL1.pressing(), controller_2.buttonL2.pressing(), controller_2.buttonDown.pressing(), controller_2.buttonRight.pressing(), controller_2.buttonUp.pressing())
+    
+    bumperSystem(bumper1.pressing(), bumper2.pressing())
+    
     
 
 
 
-#drivetrain
-#goes faster on one side, fix it pls 10/14/2022 uwu
-def driveLeft(speed : int, units : PercentUnits):
-    LeftWheelMotor1.set_velocity(int(speed), units)
-    LeftWheelMotor1.spin(FORWARD)
-    LeftWheelMotor2.set_velocity(int(speed), units)
-    LeftWheelMotor2.spin(FORWARD)
+#drivetrain functions
+def driveLeft(speed: float, units):
+    leftWheelMotor.set_velocity(int(speed), units)
+    leftWheelMotor.spin(FORWARD)
 
-def driveRight(speed : int, units : PercentUnits):
-    RightWheelMotor1.set_velocity(int(speed), units)
-    RightWheelMotor1.spin(REVERSE)
-    RightWheelMotor2.set_velocity(int(speed), units)
-    RightWheelMotor2.spin(REVERSE)
+def driveRight(speed: float, units):
+    rightWheelMotor.set_velocity(int(speed), units)
+    rightWheelMotor.spin(REVERSE)
 
 
 
 #First conveyor belt + intake
-def Conveyor1System(butnY, butnR1):
-    Conveyor1.set_velocity(int(100), PERCENT)
-    ConveyorIntakeWheels.set_velocity(int(100), PERCENT)
+def conveyor1System(butnY, butnR1):
+    conveyor1.set_velocity(int(100), PERCENT)
+    conveyorIntakeWheels.set_velocity(int(100), PERCENT)
     if butnY:
         if butnR1:
             direction = REVERSE
         else:
             direction = FORWARD
-        Conveyor1.spin(direction)
-        ConveyorIntakeWheels.spin(direction)
+        conveyor1.spin(direction)
+        conveyorIntakeWheels.spin(direction)
     else:
-        Conveyor1.stop()
-        ConveyorIntakeWheels.stop()
+        conveyor1.stop()
+        conveyorIntakeWheels.stop()
 
 
+
+#lift system (using arrow buttons)
+#spin motor unitl sonic sensor reaches the correct spot while button is held down
 def liftSystem(butnDown, butnRight, butnUp, butnLeft, whereLiftAtTrue):
-    Lift.set_velocity(100, PERCENT)
+    lift.set_velocity(100, PERCENT)
 
     #Lower level
     if butnDown and whereLiftAtTrue != 1:
-        Lift.spin(REVERSE)
+        lift.spin(REVERSE)
 
     #Middle level
     elif butnRight and whereLiftAtTrue != 2:
         if whereLiftAtTrue >2: 
-            Lift.spin(REVERSE) #spin motor unitl sonic sensor reaches the correct spot
+            lift.spin(REVERSE) 
         elif whereLiftAtTrue<2:
-            Lift.spin(FORWARD)
+            lift.spin(FORWARD)
     
     #Upper level
     elif butnUp and whereLiftAtTrue != 3:
-        Lift.spin(FORWARD)
+        lift.spin(FORWARD)
 
 
-#Front Bumpers
+#front bumpers
 showing1 = False
 showing2 = False
-def BumperSystem(bump1Pressing, bump2Pressing):
+def bumperSystem(bump1Pressing, bump2Pressing):
     global showing1
     global showing2
     #Shows if bumpers are being pressed on the robot.
     #Disappears if bumpers are not being pressed.
+
+    #bumper1
     if bump1Pressing and not showing1:
         controller_1.screen.set_cursor(1,1)
         controller_2.screen.set_cursor(1,1)
         controller_1.screen.print("Bumper1: ")
-        controller_1.screen.print(Bumper1.pressing())
+        controller_1.screen.print(bumper1.pressing())
         controller_2.screen.print("Bumper1: ")
-        controller_2.screen.print(Bumper1.pressing())
+        controller_2.screen.print(bumper1.pressing())
         showing1 = True
     elif not bump1Pressing and showing1:
         controller_2.screen.clear_row(1)
         controller_1.screen.clear_row(1)
         showing1 = False
 
-
-
+    #bumper2
     if bump2Pressing and not showing2:
         controller_1.screen.set_cursor(2,1)
         controller_2.screen.set_cursor(2,1)
         controller_1.screen.print("Bumper2: ")
-        controller_1.screen.print(Bumper2.pressing())
+        controller_1.screen.print(bumper2.pressing())
         controller_2.screen.print("Bumper2: ")
-        controller_2.screen.print(Bumper2.pressing())
+        controller_2.screen.print(bumper2.pressing())
         showing2 = True
     elif not bump2Pressing and showing2:
         controller_2.screen.clear_row(2)
@@ -244,28 +248,28 @@ def BumperSystem(bump1Pressing, bump2Pressing):
 
 
 # Second conveyor belt system
-def Conveyor2System(butnA, butnR1):
+def conveyor2System(butnA, butnR1):
     if butnA:
-        Conveyor2.set_velocity(100, PERCENT)
+        conveyor2.set_velocity(100, PERCENT)
         if butnR1:
             direction = REVERSE
         else:
             direction = FORWARD
-        Conveyor2.spin(direction)
+        conveyor2.spin(direction)
     else:
-        Conveyor2.stop()
+        conveyor2.stop()
 
 
 # Lift system (Manual)
 def liftManual(butnL1, butnL2, butnDown, butnRight, butnUp):
-    if butnL1 and not bumperlift1.pressing():
-        Lift.set_velocity(100, PERCENT)
-        Lift.spin(REVERSE)
+    if butnL1:
+        lift.set_velocity(100, PERCENT)
+        lift.spin(REVERSE)
     elif butnL2 and whereLiftAt != 3:
-        Lift.set_velocity(100, PERCENT)
-        Lift.spin(FORWARD)
+        lift.set_velocity(100, PERCENT)
+        lift.spin(FORWARD)
     elif butnDown ==False and butnRight == False and butnUp == False:
-        Lift.stop()
+        lift.stop()
 
 
 #Printing to controller screens. useful for debugging
